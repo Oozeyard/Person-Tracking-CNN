@@ -4,6 +4,5 @@ Projet IMAGE Master 2 Imagine
 
 Crée par : 
 CANHOTO Mickaël, 
-FONTAINE Emmanuel, 
-NIGH Kaï
+FONTAINE Emmanuel
 
