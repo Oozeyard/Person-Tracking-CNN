@@ -1,6 +1,12 @@
 from VideoReader import VideoReader
+import time
 
-video_path = "../Vidéos/video_test_1.mp4"
+video_path = "../Videos/2.mp4"
 
+start_time = time.time()
 video = VideoReader(video_path)
-print(video.get_frame_count())
+end_time = time.time()
+
+execution_time = end_time - start_time
+print(f"Execution time: {execution_time} seconds")
+
