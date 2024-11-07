@@ -14,7 +14,6 @@ class VideoReader:
         if not os.path.exists(video_path):
             raise FileNotFoundError(f"The video file at {video_path} does not exist.")
         self.video = cv2.VideoCapture(video_path)
-        self.extract()
 
     def extract(self):
         print("Extracting frames from video...")
