@@ -12,26 +12,25 @@ class App:
         self.root = root
         self.root.title("Video Tracking App")
         self.root.geometry("800x600")
-        ctk.set_appearance_mode("dark")  # Mode sombre
-        ctk.set_default_color_theme("blue")  # Thème bleu par défaut
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue") 
         
         # video extension
         self.video_exts = r"*.mp4"#  *.avi *.mov  *.mkv"  /!\ Only mp4 files are supported for now
 
         
-        # Variable pour le choix de floutage
+        # Blur
         self.blur_var = ctk.BooleanVar()
         self.blur_type = ctk.StringVar(value="Gaussian")
 
-        # Chemin des fichiers vidéo
+        # Video path
         self.video_path = ""
         self.output_path = ""
-
-        # Crée les éléments de l'interface
+        
         self.create_widgets()
 
     def create_widgets(self):
-        # Choix de la vidéo à traiter
+        # Video path
         video_frame = ctk.CTkFrame(self.root)
         video_frame.pack(pady=5, padx=5)
         ctk.CTkLabel(video_frame, text="Vidéo à traiter:").pack(side="left", padx=5)
@@ -39,7 +38,7 @@ class App:
         self.video_path_label = ctk.CTkLabel(video_frame, text="", width=300, anchor="w")  # Label pour afficher le chemin de la vidéo
         self.video_path_label.pack(side="left", padx=5)
         
-        # Choix du fichier de sortie
+        # output path
         output_frame = ctk.CTkFrame(self.root)
         output_frame.pack(pady=5)
         ctk.CTkLabel(output_frame, text="Emplacement de sortie:").pack(side="left", padx=5)
@@ -47,14 +46,14 @@ class App:
         self.output_path_label = ctk.CTkLabel(output_frame, text="", width=300, anchor="w")  # Label pour afficher le chemin de la sortie
         self.output_path_label.pack(side="left", padx=5)
         
-        # Checkbox pour le floutage
+        # Checkbox blur
         ctk.CTkCheckBox(self.root, text="Appliquer un floutage", variable=self.blur_var, command=self.toggle_blur_options).pack(pady=5)
         
-        # Liste des types de floutage
+        # blur options
         self.blur_options = ctk.CTkComboBox(self.root, values=["Gaussian", "Mosaic", "Pixelate"], variable=self.blur_type, state="disabled")
         self.blur_options.pack(pady=5)
 
-        # Visualisation de la vidéo
+        # preview video
         self.video_panel = ctk.CTkFrame(self.root, width=600, height=320, corner_radius=15)
         self.video_panel.pack(pady=10)
         self.video_panel.pack_propagate(False)
@@ -115,6 +114,7 @@ class App:
             self.progress_slider.configure(from_=-1, to=self.duration, number_of_steps=self.duration)
         except:
             pass
+    
     def seek(self, value):
         if self.video_path:
             try:
@@ -159,7 +159,7 @@ class App:
         self.progress.update_idletasks()
         self.progress_slider.set(index / self.video.get_fps())
         self.progress_slider.update_idletasks()
-        self.display_video_frame(self.detection.processed_frames[index]) # Work but is slow
+        # self.display_video_frame(self.detection.processed_frames[index]) # Work but is slow
 
     def process_video(self):
         self.dynamic_label.update_idletasks()
@@ -177,7 +177,7 @@ class App:
         self.dynamic_label.update()
         self.video.extract()
 
-        self.detection = Detection(self.video, self.output_path, callback=self.update_progress)
+        self.detection = Detection(self.video, self.output_path, self.blur_var, self.blur_type, callback=self.update_progress)
         time.sleep(0.1)
         self.dynamic_label.configure(text="Processing video...")
         self.dynamic_label.update()

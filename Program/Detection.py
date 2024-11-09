@@ -1,15 +1,20 @@
 from ultralytics import YOLO
 import cv2
+import torch
 
 class Detection:
-    def __init__(self, video, output_path, detect_face=False, censored=False, censored_method=None, callback=None):
+    def __init__(self, video, output_path, censored=False, censored_method=None, detect_face=False, callback=None):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print("GPU : " + torch.cuda.is_available())
         if detect_face : self.model = YOLO("Models/yolov11n-face.pt")
         else : self.model = YOLO("Models/yolo11n.pt")
+        self.model.to(device) # Move model to gpu if available
         self.video = video
         self.output_path = output_path
 
         self.callback = callback
         self.censored = censored
+        self.censored_method = censored_method
         
         self.processed_frames = []
     
