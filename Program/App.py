@@ -1,8 +1,8 @@
 import customtkinter as ctk
-from PIL import Image, ImageTk  # Nécessite le module Pillow pour afficher les images
+from tkinter import filedialog
+from PIL import Image, ImageTk
 import cv2
 import time
-from tkinter import filedialog
 from tkVideoPlayer import TkinterVideo
 from VideoReader import VideoReader
 from Detection import Detection
@@ -145,13 +145,8 @@ class App:
         self.play_pause_btn.configure(text="Play ►")
         self.progress_slider.set(-1)
 
-
-
     def toggle_blur_options(self):
-        if self.blur_var.get():
-            self.blur_options.configure(state="normal")
-        else:
-            self.blur_options.configure(state="disabled")
+        self.blur_options.configure(state="normal" if self.blur_var.get() else "disabled")
 
     def update_progress(self, value, index):
         self.progress_label.configure(text=f"Progression: {value:.2%}")
@@ -162,33 +157,18 @@ class App:
         # self.display_video_frame(self.detection.processed_frames[index]) # Work but is slow
 
     def process_video(self):
-        self.dynamic_label.update_idletasks()
-        if not self.video_path:
-            self.dynamic_label.configure(text="Select a video file")
-            return
-        if not self.output_path:
-            self.dynamic_label.configure(text="Select an output path")
+        if not self.video_path or not self.output_path:
+            self.dynamic_label.configure(text="Select a video and output path")
             return
 
         start_time = time.time()
-
         self.video = VideoReader(self.video_path)
-        self.dynamic_label.configure(text="Extracting frames from video...")
-        self.dynamic_label.update()
-        self.video.extract()
 
-        self.detection = Detection(self.video, self.output_path, self.blur_var, self.blur_type, callback=self.update_progress)
-        time.sleep(0.1)
         self.dynamic_label.configure(text="Processing video...")
-        self.dynamic_label.update()
+        self.detection = Detection(self.video, self.output_path, self.blur_var, self.blur_type, callback=self.update_progress)
         self.detection.process()
-
-        end_time = time.time()
-        execution_time = end_time - start_time
-        self.dynamic_label.configure(text=f"Execution time: {round(execution_time, 2)} seconds")
-        self.dynamic_label.update()
-        time.sleep(1)
-
+        self.dynamic_label.configure(text=f"Execution time: {round(time.time() - start_time, 2)} seconds")
+        
         try:
             self.vid_player.load(self.output_path)
             self.vid_player.play()
@@ -197,7 +177,6 @@ class App:
         except:
             print("Unable to load the file")
 
-    
     def display_video_frame(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(frame)
@@ -205,6 +184,3 @@ class App:
         imgtk = ImageTk.PhotoImage(image=img)
         self.vid_player.config(image=imgtk)
         self.vid_player.image = imgtk
-
-
-

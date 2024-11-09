@@ -20,23 +20,19 @@ class VideoReader:
         self.height = int(self.video.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.frame_count = int(self.video.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    def extract(self):
-        print("Extracting frames from video...")
-        success, frame = self.video.read()
-        while success:
-            self.frames.append(frame)
-            success, frame = self.video.read()
-
     def get_frame(self, index):
         if index < 0 or index >= self.frame_count:
             return None
         return self.frames[index]
-    
-    def get_frame_count(self):
-        return self.frame_count
+
+    def read(self):
+        return self.video.read()
     
     def get_fps(self):
         return self.fps
+    
+    def release(self):
+        self.video.release()
 
     def to_video(self, frames, output_path):
         print("Writing frames to video...")

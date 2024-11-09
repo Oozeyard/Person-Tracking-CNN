@@ -1,49 +1,59 @@
 from ultralytics import YOLO
 import cv2
 import torch
+from VideoReader import VideoReader
 
 class Detection:
     def __init__(self, video, output_path, censored=False, censored_method=None, detect_face=False, callback=None):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        print("GPU : " + torch.cuda.is_available())
-        if detect_face : self.model = YOLO("Models/yolov11n-face.pt")
-        else : self.model = YOLO("Models/yolo11n.pt")
-        self.model.to(device) # Move model to gpu if available
+        model_path = "Models/yolov11n-face.pt" if detect_face else "Models/yolo11n.pt"
+        self.model = YOLO(model_path).to(device)
+        
+        print("GPU : " + str(torch.cuda.is_available()))
+        
         self.video = video
         self.output_path = output_path
 
         self.callback = callback
         self.censored = censored
         self.censored_method = censored_method
-        
-        self.processed_frames = []
     
     def process(self):
-        for i in range(self.video.get_frame_count()):
-            frame = self.video.get_frame(i)
-            results = self.model.track(frame, classes=0, verbose=False, persist=True, tracker="bytetrack.yaml")
-            if self.censored : self.blur(frame, results)
-            self.processed_frames.append(results[0].plot())
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(self.output_path, fourcc, self.video.fps, (self.video.width, self.video.height))
+
+        for i in range(self.video.frame_count):
+            success, frame = self.video.read()
+            if not success:
+                break
             
-            # Update progress bar
-            progress = (i + 1) / self.video.get_frame_count()
+            results = self.model.track(frame, classes=0, verbose=False, persist=True, tracker="bytetrack.yaml")
+            if self.censored:
+                self.blur(frame, results)
+
+            out.write(results[0].plot())  # write the frame to the output video
+            
+            # progress bar
+            progress = (i + 1) / self.video.frame_count
             print(f'\rProgress: {progress:.2%}', end='')
             if self.callback:
                 self.callback(progress, i)
-    
-        self.video.to_video(self.processed_frames, self.output_path)
+        
+        self.video.release()
+        out.release()
+        print(f"\nProcessing complete. Video saved to {self.output_path}")
         
     def blur(self, frame, results):
         for result in results:
             for box in result.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 person_region = frame[y1:y2, x1:x2]
-                blurred_region = cv2.GaussianBlur(person_region, (75, 75), 0)
+                blur_kernel_size = (75, 75)  # Taille du noyau pour le floutage
+                blurred_region = cv2.GaussianBlur(person_region, blur_kernel_size, 0)
                 frame[y1:y2, x1:x2] = blurred_region
 
     def realease(self):
         self.model.close()
-        self.video.release()
     
     #def pretreatment(self):
         # # Noises removal
