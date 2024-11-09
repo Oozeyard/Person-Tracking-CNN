@@ -1,12 +1,15 @@
 from ultralytics import YOLO
-from VideoReader import VideoReader
 import cv2
 
 class Detection:
-    def __init__(self, video, output_path):
-        self.model = YOLO("Models/yolo11n.pt")
+    def __init__(self, video, output_path, detect_face=False, censored=False, censored_method=None, callback=None):
+        if detect_face : self.model = YOLO("Models/yolov11n-face.pt")
+        else : self.model = YOLO("Models/yolo11n.pt")
         self.video = video
         self.output_path = output_path
+
+        self.callback = callback
+        self.censored = censored
         
         self.processed_frames = []
     
@@ -14,12 +17,14 @@ class Detection:
         for i in range(self.video.get_frame_count()):
             frame = self.video.get_frame(i)
             results = self.model.track(frame, classes=0, verbose=False, persist=True, tracker="bytetrack.yaml")
-            self.blur(frame, results)
+            if self.censored : self.blur(frame, results)
             self.processed_frames.append(results[0].plot())
             
             # Update progress bar
             progress = (i + 1) / self.video.get_frame_count()
-            print(f"\rProcessing frame [{progress:.2%}]", end="")
+            print(f'\rProgress: {progress:.2%}', end='')
+            if self.callback:
+                self.callback(progress, i)
     
         self.video.to_video(self.processed_frames, self.output_path)
         
@@ -30,6 +35,10 @@ class Detection:
                 person_region = frame[y1:y2, x1:x2]
                 blurred_region = cv2.GaussianBlur(person_region, (75, 75), 0)
                 frame[y1:y2, x1:x2] = blurred_region
+
+    def realease(self):
+        self.model.close()
+        self.video.release()
     
     #def pretreatment(self):
         # # Noises removal
