@@ -122,8 +122,8 @@ class App:
                 self.vid_player.play()
                 self.vid_player.after(50,self.vid_player.pause)
                 self.play_pause_btn.configure(text="Play ►")
-            except:
-                pass
+            except Exception as e:
+                print(f"Error seeking video: {e}")
         
     def update_scale(self, event):
         try:
@@ -165,17 +165,20 @@ class App:
         self.video = VideoReader(self.video_path)
 
         self.dynamic_label.configure(text="Processing video...")
-        self.detection = Detection(self.video, self.output_path, self.blur_var, self.blur_type, callback=self.update_progress)
+        self.detection = Detection(self.video, self.output_path, self.blur_var.get(), self.blur_type, callback=self.update_progress)
         self.detection.process()
         self.dynamic_label.configure(text=f"Execution time: {round(time.time() - start_time, 2)} seconds")
         
-        try:
-            self.vid_player.load(self.output_path)
-            self.vid_player.play()
-            self.progress_slider.set(-1)
-            self.play_pause_btn.configure(text="Pause ||")
-        except:
-            print("Unable to load the file")
+        time.sleep(0.5)
+        if self.output_path :
+            self.vid_player.stop()
+            try:
+                self.vid_player.load(self.output_path)
+                # self.vid_player.play()
+                self.progress_slider.set(0)
+                self.play_pause_btn.configure(text="Play ►")
+            except:
+                print("Unable to load the file")
 
     def display_video_frame(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

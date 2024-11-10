@@ -1,7 +1,6 @@
 from ultralytics import YOLO
 import cv2
 import torch
-from VideoReader import VideoReader
 
 class Detection:
     def __init__(self, video, output_path, censored=False, censored_method=None, detect_face=False, callback=None):
@@ -48,7 +47,7 @@ class Detection:
             for box in result.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 person_region = frame[y1:y2, x1:x2]
-                blur_kernel_size = (75, 75)  # Taille du noyau pour le floutage
+                blur_kernel_size = (85, 85)  # Taille du noyau pour le floutage
                 blurred_region = cv2.GaussianBlur(person_region, blur_kernel_size, 0)
                 frame[y1:y2, x1:x2] = blurred_region
 
