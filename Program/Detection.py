@@ -42,6 +42,14 @@ class Detection:
         out.release()
         print(f"\nProcessing complete. Video saved to {self.output_path}")
         
+    def process_image(self):
+        results = self.model(self.video)
+        if self.censored:
+            self.blur(self.video, results)
+        out = results[0].plot()
+        cv2.imwrite(self.output_path, out)
+        
+        
     def blur(self, frame, results):
         for result in results:
             for box in result.boxes:

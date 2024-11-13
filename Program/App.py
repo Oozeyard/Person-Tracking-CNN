@@ -16,7 +16,7 @@ class App:
         ctk.set_default_color_theme("blue") 
         
         # video extension
-        self.video_exts = r"*.mp4"#  *.avi *.mov  *.mkv"  /!\ Only mp4 files are supported for now
+        self.video_exts = r"*.mp4 *.png *.jpg"#  *.avi *.mov  *.mkv"  /!\ Only mp4 files are supported for now
 
         
         # Blur
@@ -160,13 +160,17 @@ class App:
         if not self.video_path or not self.output_path:
             self.dynamic_label.configure(text="Select a video and output path")
             return
-
         start_time = time.time()
-        self.video = VideoReader(self.video_path)
 
-        self.dynamic_label.configure(text="Processing video...")
-        self.detection = Detection(self.video, self.output_path, self.blur_var.get(), self.blur_type, callback=self.update_progress)
-        self.detection.process()
+        if self.video_path.endswith((".png", ".jpg")): # Image processing
+            self.dynamic_label.configure(text="Processing image...")
+            self.detection = Detection(self.video_path, self.output_path, self.blur_var.get(), self.blur_type, callback=None)
+            self.detection.process_image()
+        else: # Video processing
+            self.video = VideoReader(self.video_path)
+            self.dynamic_label.configure(text="Processing video...")
+            self.detection = Detection(self.video, self.output_path, self.blur_var.get(), self.blur_type, callback=self.update_progress)
+            self.detection.process()
         self.dynamic_label.configure(text=f"Execution time: {round(time.time() - start_time, 2)} seconds")
         
         time.sleep(0.5)

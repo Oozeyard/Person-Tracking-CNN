@@ -1,9 +1,5 @@
 from App import App
 from customtkinter import *
-import cv2
-import time
-from VideoReader import VideoReader
-from Detection import Detection
 
 # Initialiser l'application
 root = CTk()
