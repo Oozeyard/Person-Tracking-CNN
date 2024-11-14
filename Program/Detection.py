@@ -36,7 +36,7 @@ class Detection:
             progress = (i + 1) / self.video.frame_count
             print(f'\rProgress: {progress:.2%}', end='')
             if self.callback:
-                self.callback(progress, i)
+                self.callback(progress, i, results[0].plot())
         
         self.video.release()
         out.release()

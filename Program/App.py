@@ -148,13 +148,13 @@ class App:
     def toggle_blur_options(self):
         self.blur_options.configure(state="normal" if self.blur_var.get() else "disabled")
 
-    def update_progress(self, value, index):
+    def update_progress(self, value, index, outImage):
         self.progress_label.configure(text=f"Progression: {value:.2%}")
         self.progress.set(value) #progress:.2%
         self.progress.update_idletasks()
         self.progress_slider.set(index / self.video.get_fps())
         self.progress_slider.update_idletasks()
-        # self.display_video_frame(self.detection.processed_frames[index]) # Work but is slow
+        self.display_video_frame(outImage) # Work but is slow
 
     def process_video(self):
         if not self.video_path or not self.output_path:
