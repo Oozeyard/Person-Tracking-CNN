@@ -1,6 +1,9 @@
 from ultralytics import YOLO
 import cv2
 import torch
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+import numpy as np
 
 class Detection:
     def __init__(self, video, output_path, censored=False, censored_method=None, detect_face=False, callback=None):
@@ -61,20 +64,79 @@ class Detection:
                     print("Invalid region detected. Skipping.")
                     continue  # Ignore empty or invalid regions
                 if self.censored_method == 'Gaussian':
-                    blur_kernel_size = (85, 85)
-                    blurred_region = cv2.GaussianBlur(person_region, blur_kernel_size, 0)
+                    blurred_region = self.gaussian_blur(person_region)
                 elif self.censored_method == 'Pixelate':
-                    region_height, region_width = person_region.shape[:2]
-                    min_pixel_size = 2 # pixel minimum size
-                    small_width = max(min_pixel_size, int(region_width * 0.05))
-                    small_height = max(min_pixel_size, int(region_height * 0.05))
-
-                    # Downscale & upscale the region to pixelate it
-                    small_region = cv2.resize(person_region, (small_width, small_height), interpolation=cv2.INTER_NEAREST)
-                    blurred_region = cv2.resize(small_region, (region_width, region_height), interpolation=cv2.INTER_NEAREST)
+                    blurred_region = self.pixelate(person_region)
+                elif self.censored_method == 'AES':
+                    blurred_region, key, iv = self.aes_encrypt(person_region)
+                    print(f"Key: {key.hex()}, IV: {iv.hex()}")
                 frame[y1:y2, x1:x2] = blurred_region
 
+    def gaussian_blur(self, region):
+        """
+        Apply Gaussian blur to a region
+        """
+        kernel_size = (85, 85)
+        return cv2.GaussianBlur(region, kernel_size, 0)
+
+    def pixelate(self, region):
+        """
+        Pixelate a region
+        """
+        region_height, region_width = region.shape[:2]
+        min_pixel_size = 2
+        small_width = max(min_pixel_size, int(region_width * 0.05))
+        small_height = max(min_pixel_size, int(region_height * 0.05))
         
+        # Downscale & upscale the region to pixelate it
+        small_region = cv2.resize(region, (small_width, small_height), interpolation=cv2.INTER_NEAREST)
+        return cv2.resize(small_region, (region_width, region_height), interpolation=cv2.INTER_NEAREST)
+    
+    def aes_encrypt(self, region):
+        """
+        AES encryption
+        """
+        # key and iv
+        key = get_random_bytes(16)  # 16 bytes = clé AES 128 bits
+        iv = get_random_bytes(16)   # 16 bytes pour le vecteur d'initialisation
+
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+
+        # padding
+        region_bytes = region.tobytes()
+        padding_length = 16 - (len(region_bytes) % 16)
+        padded_region_bytes = region_bytes + bytes([padding_length]) * padding_length
+
+        # encryption
+        encrypted_bytes = cipher.encrypt(padded_region_bytes)
+        
+        # Convert to image
+        encrypted_array = np.frombuffer(encrypted_bytes, dtype=np.uint8)
+        encrypted_image = encrypted_array[:region.size].reshape(region.shape)
+        encrypted_image = (encrypted_image % 256).astype(np.uint8)
+
+        return encrypted_image, key, iv
+        
+    def aes_decrypt(self, encrypted_region, key, iv, original_shape):
+        """
+        AES decryption
+        """
+        # to bytes
+        encrypted_bytes = encrypted_region.tobytes()
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+
+        # decryption
+        decrypted_bytes = cipher.decrypt(encrypted_bytes)
+
+        # Remove padding
+        padding_length = decrypted_bytes[-1]
+        region_bytes = decrypted_bytes[:-padding_length]
+
+        region = np.frombuffer(region_bytes, dtype=np.uint8).reshape(original_shape)
+
+        return region
+
+
     def realease(self):
         self.model.close()
     

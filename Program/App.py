@@ -58,7 +58,7 @@ class App:
         ctk.CTkCheckBox(checkbox_frame, text="Appliquer un floutage", variable=self.blur_var, command=self.toggle_blur_options).pack(side="left", padx=5)
         
         # blur options
-        self.blur_options = ctk.CTkComboBox(self.root, values=["Gaussian", "Pixelate", "rANS"], variable=self.blur_type, state="disabled")
+        self.blur_options = ctk.CTkComboBox(self.root, values=["Gaussian", "Pixelate", "AES"], variable=self.blur_type, state="disabled")
         self.blur_options.pack(pady=5)
         
 
