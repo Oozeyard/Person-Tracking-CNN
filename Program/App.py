@@ -21,6 +21,8 @@ class App:
         
         # Blur
         self.blur_var = ctk.BooleanVar()
+        self.face_detection_var = ctk.BooleanVar()
+        self.face_detection_var.set(False)
         self.blur_type = ctk.StringVar(value="Gaussian")
 
         # Video path
@@ -46,12 +48,19 @@ class App:
         self.output_path_label = ctk.CTkLabel(output_frame, text="", width=300, anchor="w")  # Label pour afficher le chemin de la sortie
         self.output_path_label.pack(side="left", padx=5)
         
+        # Checkbox Frame
+        checkbox_frame = ctk.CTkFrame(self.root)
+        checkbox_frame.pack(pady=5)
+
+        # Checkbox Face detection
+        ctk.CTkCheckBox(checkbox_frame, text="Détection du visage seulement", variable=self.face_detection_var).pack(side="left", padx=5)
         # Checkbox blur
-        ctk.CTkCheckBox(self.root, text="Appliquer un floutage", variable=self.blur_var, command=self.toggle_blur_options).pack(pady=5)
+        ctk.CTkCheckBox(checkbox_frame, text="Appliquer un floutage", variable=self.blur_var, command=self.toggle_blur_options).pack(side="left", padx=5)
         
         # blur options
-        self.blur_options = ctk.CTkComboBox(self.root, values=["Gaussian", "Mosaic", "Pixelate"], variable=self.blur_type, state="disabled")
+        self.blur_options = ctk.CTkComboBox(self.root, values=["Gaussian", "Pixelate", "rANS"], variable=self.blur_type, state="disabled")
         self.blur_options.pack(pady=5)
+        
 
         # preview video
         self.video_panel = ctk.CTkFrame(self.root, width=600, height=320, corner_radius=15)
@@ -164,12 +173,12 @@ class App:
 
         if self.video_path.endswith((".png", ".jpg")): # Image processing
             self.dynamic_label.configure(text="Processing image...")
-            self.detection = Detection(self.video_path, self.output_path, self.blur_var.get(), self.blur_type, callback=None)
+            self.detection = Detection(self.video_path, self.output_path, self.blur_var.get(), self.blur_options.get(), self.face_detection_var.get(), callback=None)
             self.detection.process_image()
         else: # Video processing
             self.video = VideoReader(self.video_path)
             self.dynamic_label.configure(text="Processing video...")
-            self.detection = Detection(self.video, self.output_path, self.blur_var.get(), self.blur_type, callback=self.update_progress)
+            self.detection = Detection(self.video, self.output_path, self.blur_var.get(), self.blur_options.get(), self.face_detection_var.get(), callback=self.update_progress)
             self.detection.process()
         self.dynamic_label.configure(text=f"Execution time: {round(time.time() - start_time, 2)} seconds")
         

@@ -43,7 +43,7 @@ class Detection:
         print(f"\nProcessing complete. Video saved to {self.output_path}")
         
     def process_image(self):
-        results = self.model(self.video)
+        results = self.model.track(self.video, classes=0, verbose=False, persist=True, tracker="bytetrack.yaml")
         if self.censored:
             self.blur(self.video, results)
         out = results[0].plot()
@@ -54,11 +54,27 @@ class Detection:
         for result in results:
             for box in result.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
+                if x1 < 0 or y1 < 0 or x2 > frame.shape[1] or y2 > frame.shape[0]:
+                    continue  # Ignore regions out of bounds
                 person_region = frame[y1:y2, x1:x2]
-                blur_kernel_size = (85, 85)  # Taille du noyau pour le floutage
-                blurred_region = cv2.GaussianBlur(person_region, blur_kernel_size, 0)
+                if person_region.size == 0 or person_region.shape[0] == 0 or person_region.shape[1] == 0:
+                    print("Invalid region detected. Skipping.")
+                    continue  # Ignore empty or invalid regions
+                if self.censored_method == 'Gaussian':
+                    blur_kernel_size = (85, 85)
+                    blurred_region = cv2.GaussianBlur(person_region, blur_kernel_size, 0)
+                elif self.censored_method == 'Pixelate':
+                    region_height, region_width = person_region.shape[:2]
+                    min_pixel_size = 2 # pixel minimum size
+                    small_width = max(min_pixel_size, int(region_width * 0.05))
+                    small_height = max(min_pixel_size, int(region_height * 0.05))
+
+                    # Downscale & upscale the region to pixelate it
+                    small_region = cv2.resize(person_region, (small_width, small_height), interpolation=cv2.INTER_NEAREST)
+                    blurred_region = cv2.resize(small_region, (region_width, region_height), interpolation=cv2.INTER_NEAREST)
                 frame[y1:y2, x1:x2] = blurred_region
 
+        
     def realease(self):
         self.model.close()
     
