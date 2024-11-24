@@ -35,16 +35,16 @@ class App:
         # Video path
         video_frame = ctk.CTkFrame(self.root)
         video_frame.pack(pady=5, padx=5)
-        ctk.CTkLabel(video_frame, text="Vidéo à traiter:").pack(side="left", padx=5)
-        ctk.CTkButton(video_frame, text="Sélectionner", command=self.select_video).pack(side="left", padx=5)
+        ctk.CTkLabel(video_frame, text="Video to process:").pack(side="left", padx=5)
+        ctk.CTkButton(video_frame, text="Select", command=self.select_video).pack(side="left", padx=5)
         self.video_path_label = ctk.CTkLabel(video_frame, text="", width=300, anchor="w")  # Label pour afficher le chemin de la vidéo
         self.video_path_label.pack(side="left", padx=5)
         
         # output path
         output_frame = ctk.CTkFrame(self.root)
         output_frame.pack(pady=5)
-        ctk.CTkLabel(output_frame, text="Emplacement de sortie:").pack(side="left", padx=5)
-        ctk.CTkButton(output_frame, text="Sélectionner", command=self.select_output).pack(side="left", padx=5)
+        ctk.CTkLabel(output_frame, text="Output Location:").pack(side="left", padx=5)
+        ctk.CTkButton(output_frame, text="Select", command=self.select_output).pack(side="left", padx=5)
         self.output_path_label = ctk.CTkLabel(output_frame, text="", width=300, anchor="w")  # Label pour afficher le chemin de la sortie
         self.output_path_label.pack(side="left", padx=5)
         
@@ -53,9 +53,9 @@ class App:
         checkbox_frame.pack(pady=5)
 
         # Checkbox Face detection
-        ctk.CTkCheckBox(checkbox_frame, text="Détection du visage seulement", variable=self.face_detection_var).pack(side="left", padx=5)
+        ctk.CTkCheckBox(checkbox_frame, text="Face detection only", variable=self.face_detection_var).pack(side="left", padx=5)
         # Checkbox blur
-        ctk.CTkCheckBox(checkbox_frame, text="Appliquer un floutage", variable=self.blur_var, command=self.toggle_blur_options).pack(side="left", padx=5)
+        ctk.CTkCheckBox(checkbox_frame, text="Apply anonymization", variable=self.blur_var, command=self.toggle_blur_options).pack(side="left", padx=5)
         
         # blur options
         self.blur_options = ctk.CTkComboBox(self.root, values=["Gaussian", "Pixelate", "AES"], variable=self.blur_type, state="disabled")
@@ -98,7 +98,7 @@ class App:
 
     def select_video(self):
         self.vid_player.stop()
-        self.video_path = filedialog.askopenfilename(title="Choisissez une vidéo", filetypes=[("Fichiers vidéo", self.video_exts)])
+        self.video_path = filedialog.askopenfilename(title="Select a video", filetypes=[("Video files", self.video_exts)])
         if self.video_path:
             self.video_path_label.configure(text=self.video_path)
             try:
@@ -112,7 +112,7 @@ class App:
             print(f"Video path: {self.video_path}")
 
     def select_output(self):
-        self.output_path = filedialog.asksaveasfilename(title="Sauvegarder sous", defaultextension=".mp4", filetypes=[("Fichiers vidéo", self.video_exts)])
+        self.output_path = filedialog.asksaveasfilename(title="Save as", defaultextension=".mp4", filetypes=[("Video file", self.video_exts)])
         if self.output_path:
             self.output_path_label.configure(text=self.output_path)
             print(f"Output path : {self.output_path}")
@@ -155,7 +155,7 @@ class App:
         self.progress_slider.set(-1)
 
     def toggle_blur_options(self):
-        self.blur_options.configure(state="normal" if self.blur_var.get() else "disabled")
+        self.blur_options.configure(state="readonly" if self.blur_var.get() else "disabled")
 
     def update_progress(self, value, index, outImage):
         self.progress_label.configure(text=f"Progression: {value:.2%}")
@@ -182,16 +182,16 @@ class App:
             self.detection.process()
         self.dynamic_label.configure(text=f"Execution time: {round(time.time() - start_time, 2)} seconds")
         
-        time.sleep(0.5)
-        if self.output_path :
-            self.vid_player.stop()
-            try:
-                self.vid_player.load(self.output_path)
-                # self.vid_player.play()
-                self.progress_slider.set(0)
-                self.play_pause_btn.configure(text="Play ►")
-            except:
-                print("Unable to load the file")
+        # time.sleep(0.5)
+        # if self.output_path :
+        #     self.vid_player.stop()
+        #     try:
+        #         self.vid_player.load(self.output_path)
+        #         # self.vid_player.play()
+        #         self.progress_slider.set(0)
+        #         self.play_pause_btn.configure(text="Play ►")
+        #     except:
+        #         print("Unable to load the file")
 
     def display_video_frame(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
