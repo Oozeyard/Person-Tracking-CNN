@@ -4,73 +4,96 @@ from Crypto.Cipher import AES
 import numpy as np
 import argparse
 from VideoReader import VideoReader
-from Detection import aes_decrypt, aes_encrypt
 
-def load_frame_data(file_path):
-    """
-    Load frame metadata from a JSON file.
-    """
-    with open(file_path, "r") as f:
-        frame_data = [json.loads(line) for line in f]
-    return frame_data
+class Decrypt:
+    def __init__(self, video_path, output_path, frame_path, decrypt_ids=None):
+        self.video_path = video_path
+        self.output_path = output_path
+        self.frame_data = self.load_frame_data(frame_path)
+        self.decrypt_ids = decrypt_ids
 
-def process_frame(frame, frame_data, decrypt_ids=None):
-    """
-    Decrypt specific regions in a frame based on provided IDs.
-    If no IDs are provided, decrypt all regions.
-    """
-    for bbox in frame_data.get("bboxes", []):
-        if decrypt_ids is None or bbox["id"] in decrypt_ids:
-            x1, y1, x2, y2 = bbox["coords"]
-            key = bytes.fromhex(bbox["key"])
-            iv = bytes.fromhex(bbox["iv"])
+    def load_frame_data(self, file_path):
+        """
+        Load frame metadata from a JSON file.
+        """
+        with open(file_path, "r") as f:
+            frame_data = [json.loads(line) for line in f]
+        return frame_data
 
-            encrypted_region = np.array(bbox["region"], dtype=np.uint8)
+    def process_frame(self, frame, frame_data, decrypt_ids=None):
+        """
+        Decrypt specific regions in a frame based on provided IDs.
+        If no IDs are provided, decrypt all regions.
+        """
+        for bbox in frame_data.get("bboxes", []):
+            if decrypt_ids is None or bbox["id"] in decrypt_ids:
+                x1, y1, x2, y2 = bbox["coords"]
+                key = bytes.fromhex(bbox["key"])
+                iv = bytes.fromhex(bbox["iv"])
 
-            decrypted_region = aes_decrypt(encrypted_region, key, iv, encrypted_region.shape)
-            frame[y1:y2, x1:x2] = decrypted_region
-    return frame
+                encrypted_region = np.array(bbox["region"], dtype=np.uint8)
 
-def decrypt(video_path, output_path, frame_data, decrypt_ids=None):
-    """
-    Decrypt encrypted regions in the video for multiple IDs.
-    """
-    video_reader = VideoReader(video_path)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    output_file = output_path if decrypt_ids is None else f"{output_path}_ids_{'_'.join(map(str, decrypt_ids))}.mp4"
-    out = cv2.VideoWriter(output_file, fourcc, video_reader.fps, (video_reader.width, video_reader.height))
+                decrypted_region = self.aes_decrypt(encrypted_region, key, iv, encrypted_region.shape)
+                frame[y1:y2, x1:x2] = decrypted_region
+        return frame
 
-    for frame_index in range(video_reader.frame_count):
-        success, frame = video_reader.read()
-        print(f"\rProcessing frame {frame_index}/{video_reader.frame_count}", end="")
-        if not success:
-            break
+    def process(self, decrypt_ids=None):
+        """
+        Decrypt encrypted regions in the video for multiple IDs.
+        """
+        video_reader = VideoReader(self.video_path)
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        output_file = self.output_path if decrypt_ids is None else f"{self.output_path}_ids_{'_'.join(map(str, decrypt_ids))}.mp4"
+        out = cv2.VideoWriter(output_file, fourcc, video_reader.fps, (video_reader.width, video_reader.height))
 
-        # Get metadata for the current frame
-        current_frame_data = next((fd for fd in frame_data if fd["frame_index"] == frame_index), None)
-        if current_frame_data:
-            frame = process_frame(frame, current_frame_data, decrypt_ids)
+        for frame_index in range(video_reader.frame_count):
+            success, frame = video_reader.read()
+            print(f"\rProcessing frame {frame_index}/{video_reader.frame_count}", end="")
+            if not success:
+                break
 
-        out.write(frame)
+            # Get metadata for the current frame
+            current_frame_data = next((fd for fd in self.frame_data if fd["frame_index"] == frame_index), None)
+            if current_frame_data:
+                frame = self.process_frame(frame, current_frame_data, decrypt_ids)
 
-    video_reader.release()
-    out.release()
-    print(f"Decrypted video saved to {output_file}")
+            out.write(frame)
 
-def main():
-    parser = argparse.ArgumentParser(description="Decrypt encrypted regions in a video.")
-    parser.add_argument("video_path", type=str, help="Path to the encrypted video file.")
-    parser.add_argument("output_path", type=str, help="Path to save the decrypted video file.")
-    parser.add_argument("--ids", type=int, nargs='*', help="ID(s) of the region(s) to decrypt. If not provided, all regions will be decrypted.")
-    parser.add_argument("--metadata", type=str, default="frame_data.json", help="Path to the metadata file for decryption.")
+        video_reader.release()
+        out.release()
+    
+    def aes_decrypt(self, encrypted_region, key, iv, original_shape):
+        """
+        AES decryption.
+        """
+        cipher = AES.new(key, AES.MODE_CBC, iv)
 
-    args = parser.parse_args()
+        # Convert encrypted region to bytes
+        encrypted_bytes = encrypted_region.tobytes()
 
-    # Load frame metadata once
-    frame_data = load_frame_data(args.metadata)
+        # Block size for AES decryption
+        block_size = 16
+        num_blocks = len(encrypted_bytes) // block_size  
 
-    decrypt_ids = set(args.ids) if args.ids else None
-    decrypt(args.video_path, args.output_path, frame_data, decrypt_ids)
+        
+        decrypted_bytes = b'' # Store the decrypted data
 
-if __name__ == "__main__":
-    main()
+        for i in range(num_blocks):
+            block = encrypted_bytes[i * block_size:(i + 1) * block_size]
+            decrypted_block = cipher.decrypt(block)
+            decrypted_bytes += decrypted_block
+
+        # Get the remaining data
+        remaining_data = encrypted_bytes[num_blocks * block_size:]
+
+        # Concatenate the remaining data to the decrypted data
+        decrypted_bytes += remaining_data
+
+        # Convert the decrypted bytes to a numpy array
+        decrypted_region = np.frombuffer(decrypted_bytes, dtype=np.uint8)
+
+        # Reshape the decrypted data to the original shape
+        decrypted_region = decrypted_region.reshape(original_shape)
+
+        return decrypted_region
+    

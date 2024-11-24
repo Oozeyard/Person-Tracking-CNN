@@ -21,21 +21,20 @@ class Detection:
         self.callback = callback
         self.censored = censored
         self.censored_method = censored_method
+        
+        if self.censored_method == 'AES':
+            if os.path.exists("aes_keys.txt"):
+                os.remove("aes_keys.txt")
+            if os.path.exists("frame_data.json"):
+                os.remove("frame_data.json")
+            
 
         # AES dictionary
         self.aes_keys = {}
-
-    def generate_aes_key(self):
-        return get_random_bytes(16) #AES 128 bits key
     
     def process(self):
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(self.output_path, fourcc, self.video.fps, (self.video.width, self.video.height))
-
-        if os.path.exists("aes_keys.txt"):
-            os.remove("aes_keys.txt")
-        if os.path.exists("frame_data.json"):
-            os.remove("frame_data.json")
 
         for i in range(self.video.frame_count):
             success, frame = self.video.read()
@@ -59,21 +58,6 @@ class Detection:
         self.video.release()
         out.release()
         print(f"\nProcessing complete. Video saved to {self.output_path}")
-
-    def handle_aes_and_tracking(self, results):
-        current_ids = set()
-        for result in results:
-            for box in result.boxes:
-                track_id = int(box.id.item())
-                current_ids.add(track_id)
-
-                assert len(set(self.aes_keys.keys())) == len(self.aes_keys), "Duplicate keys detected!"
-                
-                if track_id not in self.aes_keys:
-                    # Generate a new AES key for this track ID
-                    self.aes_keys[track_id] = self.generate_aes_key()
-                    with open("aes_keys.txt", "a") as f:
-                        f.write(f"ID: {track_id}, Key: {self.aes_keys[track_id].hex()}\n")
         
         
     def process_image(self):
@@ -86,16 +70,15 @@ class Detection:
         
         
     def blur(self, frame, results, frame_index):
-        # Handle AES and tracking
-        self.handle_aes_and_tracking(results)
-
-        # JSON file to store the AES keys
-        frame_data = {
-            "frame_index": frame_index,
-            "bboxes": []
-        }
-
+        if self.censored_method == 'AES':
+            self.assign_aes_key(results) # Generate AES keys for all track IDs
+            # JSON file to store the AES keys
+            frame_data = {
+                "frame_index": frame_index,
+                "bboxes": []
+            }
         line_width = 2
+        
         for result in results:
             for box in result.boxes:
                 track_id = int(box.id.item())
@@ -111,27 +94,29 @@ class Detection:
                     blurred_region = self.gaussian_blur(person_region)
                 elif self.censored_method == 'Pixelate':
                     blurred_region = self.pixelate(person_region)
+                elif self.censored_method == 'Selective':
+                    blurred_region = self.selective_encryption(person_region)
                 elif self.censored_method == 'AES':
+
                     key = self.aes_keys.get(track_id)
-                    if key != None:
-                        blurred_region, iv = aes_encrypt(person_region, key)
-                        # print(f"ID {track_id}: Key: {key.hex()}, IV: {iv.hex()}")
-                        bbox_data = {
-                            "id": track_id,
-                            "coords": [x1, y1, x2, y2],
-                            "key": key.hex(),
-                            "iv": iv.hex(),
-                            "region": blurred_region.tolist()
-                        }
-                        frame_data["bboxes"].append(bbox_data)
-
-                    else:
-                        blurred_region = person_region
-                    
+                    if key == None:
+                        break
+                    blurred_region, iv = self.aes_encrypt(person_region, key)
+                    # print(f"ID {track_id}: Key: {key.hex()}, IV: {iv.hex()}")
+                    bbox_data = {
+                        "id": track_id,
+                        "coords": [x1, y1, x2, y2],
+                        "key": key.hex(),
+                        "iv": iv.hex(),
+                        "region": blurred_region.tolist()
+                    }
+                    frame_data["bboxes"].append(bbox_data)
+                                        
                 frame[y1:y2, x1:x2] = blurred_region
-
-            with open("frame_data.json", "a") as f:
-                f.write(json.dumps(frame_data) + "\n")
+            
+            if self.censored_method == 'AES':  
+                with open("frame_data.json", "a") as f:
+                    f.write(json.dumps(frame_data) + "\n")
 
     def gaussian_blur(self, region):
         """
@@ -153,6 +138,79 @@ class Detection:
         small_region = cv2.resize(region, (small_width, small_height), interpolation=cv2.INTER_NEAREST)
         return cv2.resize(small_region, (region_width, region_height), interpolation=cv2.INTER_NEAREST)
     
+    def selective_encryption(self, region):
+        """
+        Selectively encryption by manipulating the Least Significant Bits (LSB) of the region.
+        """
+        region = region.astype(np.uint8)
+        encrypted_region = np.zeros(region.shape, dtype=np.uint8)
+        for i in range(region.shape[0]):
+            for j in range(region.shape[1]):
+                pixel = region[i, j]
+                encrypted_pixel = pixel ^ 0xFF
+        
+                encrypted_region[i, j] = encrypted_pixel
+        return encrypted_region
+    
+
+    ############################################################################################################
+    # AES
+    ############################################################################################################
+    def assign_aes_key(self, results):
+        current_ids = set()
+        for result in results:
+            for box in result.boxes:
+                track_id = int(box.id.item())
+                current_ids.add(track_id)
+
+                assert len(set(self.aes_keys.keys())) == len(self.aes_keys), "Duplicate keys detected!"
+                
+                if track_id not in self.aes_keys:
+                    # Generate a new AES key for this track ID
+                    self.aes_keys[track_id] = self.generate_aes_key()
+                    with open("aes_keys.txt", "a") as f:
+                        f.write(f"ID: {track_id}, Key: {self.aes_keys[track_id].hex()}\n")
+
+    def generate_aes_key(self):
+        return get_random_bytes(16) #AES 128 bits key
+    
+
+
+    def aes_encrypt(self, region, key):
+        """
+        AES encryption.
+        """
+        iv = get_random_bytes(16)  # AES 128 bits IV
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+
+        # Convert region to bytes
+        region_bytes = region.tobytes()
+
+        # Block size for AES encryption
+        block_size = 16
+        num_blocks = len(region_bytes) // block_size  
+
+        encrypted_bytes = b''  # Store the encrypted data
+
+        for i in range(num_blocks):
+            block = region_bytes[i * block_size:(i + 1) * block_size]
+            encrypted_block = cipher.encrypt(block)
+            encrypted_bytes += encrypted_block
+
+        # Get the remaining data
+        remaining_data = region_bytes[num_blocks * block_size:]
+
+        # Concatenate the remaining data to the encrypted data
+        encrypted_bytes += remaining_data
+
+        # Convert the encrypted bytes to a numpy array
+        encrypted_array = np.frombuffer(encrypted_bytes, dtype=np.uint8)
+
+        # Reshape the encrypted data to the original shape
+        encrypted_array = encrypted_array.reshape(region.shape)
+
+        return encrypted_array, iv
+    
     #def pretreatment(self):
         # # Noises removal
         # frame = cv2.GaussianBlur(frame, (5, 5), 0)
@@ -173,80 +231,3 @@ class Detection:
         # lab = cv2.merge((l, a, b))
         # frame = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
 
-
-############################################################################################################
-# AES Encryption and Decryption
-############################################################################################################
-def aes_encrypt(region, key):
-    """
-    AES encryption.
-    """
-    iv = get_random_bytes(16)  # AES 128 bits IV
-    cipher = AES.new(key, AES.MODE_CBC, iv)
-
-    # Convert region to bytes
-    region_bytes = region.tobytes()
-
-    # Block size for AES encryption
-    block_size = 16
-    num_blocks = len(region_bytes) // block_size  
-
-    encrypted_bytes = b''  # Store the encrypted data
-
-    for i in range(num_blocks):
-        block = region_bytes[i * block_size:(i + 1) * block_size]
-        encrypted_block = cipher.encrypt(block)
-        encrypted_bytes += encrypted_block
-
-    # Get the remaining data
-    remaining_data = region_bytes[num_blocks * block_size:]
-
-    # Concatenate the remaining data to the encrypted data
-    encrypted_bytes += remaining_data
-
-    # Convert the encrypted bytes to a numpy array
-    encrypted_array = np.frombuffer(encrypted_bytes, dtype=np.uint8)
-
-    # Reshape the encrypted data to the original shape
-    encrypted_array = encrypted_array.reshape(region.shape)
-
-    return encrypted_array, iv
-
-
-def aes_decrypt(encrypted_region, key, iv, original_shape):
-    """
-    AES decryption.
-    """
-    cipher = AES.new(key, AES.MODE_CBC, iv)
-
-    # Convert encrypted region to bytes
-    encrypted_bytes = encrypted_region.tobytes()
-
-    # Block size for AES decryption
-    block_size = 16
-    num_blocks = len(encrypted_bytes) // block_size  
-
-    
-    decrypted_bytes = b'' # Store the decrypted data
-
-    for i in range(num_blocks):
-        block = encrypted_bytes[i * block_size:(i + 1) * block_size]
-        decrypted_block = cipher.decrypt(block)
-        decrypted_bytes += decrypted_block
-
-    # Get the remaining data
-    remaining_data = encrypted_bytes[num_blocks * block_size:]
-
-    # Concatenate the remaining data to the decrypted data
-    decrypted_bytes += remaining_data
-
-    # Convert the decrypted bytes to a numpy array
-    decrypted_region = np.frombuffer(decrypted_bytes, dtype=np.uint8)
-
-    # Reshape the decrypted data to the original shape
-    decrypted_region = decrypted_region.reshape(original_shape)
-
-    return decrypted_region
-
-    
-    

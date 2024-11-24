@@ -6,6 +6,7 @@ import time
 from tkVideoPlayer import TkinterVideo
 from VideoReader import VideoReader
 from Detection import Detection
+from Decrypt import Decrypt
 
 class App:
     def __init__(self, root):
@@ -28,7 +29,8 @@ class App:
         # Video path
         self.video_path = ""
         self.output_path = ""
-        
+        self.decrypt_window = None
+    
         self.create_widgets()
 
     def create_widgets(self):
@@ -58,7 +60,7 @@ class App:
         ctk.CTkCheckBox(checkbox_frame, text="Apply anonymization", variable=self.blur_var, command=self.toggle_blur_options).pack(side="left", padx=5)
         
         # blur options
-        self.blur_options = ctk.CTkComboBox(self.root, values=["Gaussian", "Pixelate", "AES"], variable=self.blur_type, state="disabled")
+        self.blur_options = ctk.CTkComboBox(self.root, values=["Gaussian", "Pixelate", "AES", "Selective"], variable=self.blur_type, state="disabled")
         self.blur_options.pack(pady=5)
         
 
@@ -89,11 +91,14 @@ class App:
         self.progress.set(0)
         
         #Process button
-        ctk.CTkButton(self.root, text="Process", command=self.process_video).pack(pady=5)
+        ctk.CTkButton(self.root, text="Process", command=self.process_video).pack(side='left', anchor='e', expand=True, padx=5)
+        # Add Decrypt button
+        ctk.CTkButton(self.root, text="Decrypt Window", command=self.open_decrypt_window).pack(side='right', anchor='w', expand=True, padx=5)
 
         # Label to appear when needed
-        self.dynamic_label = ctk.CTkLabel(self.root, text="", anchor="w")
+        self.dynamic_label = ctk.CTkLabel(self.root, text="")
         self.dynamic_label.pack(pady=5)
+
 
 
     def select_video(self):
@@ -200,3 +205,88 @@ class App:
         imgtk = ImageTk.PhotoImage(image=img)
         self.vid_player.config(image=imgtk)
         self.vid_player.image = imgtk
+    
+    def open_decrypt_window(self):
+        if self.decrypt_window is None or self.decrypt_window.root is None:
+            self.decrypt_window = DecryptWindow(self.root)
+        else:
+            self.decrypt_window.root.lift()
+
+class DecryptWindow:
+    def __init__(self, root):
+        self.root = ctk.CTkToplevel(root)
+        self.root.title("Decrypt Video")
+        self.root.geometry("800x400")
+
+        self.video_path = ""
+        self.frame_data_path = ""
+        self.output_path = ""
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        self.create_widgets()
+    
+    def create_widgets(self):
+        # Video to decrypt
+        video_frame = ctk.CTkFrame(self.root)
+        video_frame.pack(pady=5, padx=5)
+        ctk.CTkLabel(video_frame, text="Video to decrypt:").pack(side="left", padx=5)
+        ctk.CTkButton(video_frame, text="Select", command=self.select_video).pack(side="left", padx=5)
+        self.video_path_label = ctk.CTkLabel(video_frame, text="", width=300, anchor="w")  # Label pour afficher le chemin de la vidéo
+        self.video_path_label.pack(side="left", padx=5)
+
+        # Frame data file
+        frame_data_frame = ctk.CTkFrame(self.root)
+        frame_data_frame.pack(pady=5, padx=5)
+        ctk.CTkLabel(frame_data_frame, text="Frame Data (JSON):").pack(side="left", padx=5)
+        ctk.CTkButton(frame_data_frame, text="Select", command=self.select_frame_data).pack(side="left", padx=5)
+        self.frame_data_label = ctk.CTkLabel(frame_data_frame, text="", width=300, anchor="w")  # Label pour afficher le chemin des données de trame
+        self.frame_data_label.pack(side="left", padx=5)
+
+        # Output location
+        output_frame = ctk.CTkFrame(self.root)
+        output_frame.pack(pady=5, padx=5)
+        ctk.CTkLabel(output_frame, text="Output Location:").pack(side="left", padx=5)
+        ctk.CTkButton(output_frame, text="Select", command=self.select_output).pack(side="left", padx=5)
+        self.output_path_label = ctk.CTkLabel(output_frame, text="", width=300, anchor="w")  # Label pour afficher le chemin de la sortie
+        self.output_path_label.pack(side="left", padx=5)
+
+
+        # Decrypt button
+        ctk.CTkButton(self.root, text="Decrypt", command=self.decrypt_video).pack(pady=20)
+
+    def select_video(self):
+        self.video_path = filedialog.askopenfilename(title="Select Video", filetypes=[("Video files", "*.mp4")])
+        if self.video_path:
+            self.video_path_label.configure(text=self.video_path)
+
+    def select_frame_data(self):
+        self.frame_data_path = filedialog.askopenfilename(title="Select Frame Data", filetypes=[("JSON files", "*.json")])
+        if self.frame_data_path:
+            self.frame_data_label.configure(text=self.frame_data_path)
+
+    def select_output(self):
+        self.output_path = filedialog.asksaveasfilename(title="Save As", defaultextension=".mp4", filetypes=[("Video files", "*.mp4")])
+        if self.output_path:
+            self.output_path_label.configure(text=self.output_path)
+
+    def decrypt_video(self):
+        if not all([self.video_path, self.frame_data_path, self.output_path]):
+            ctk.CTkLabel(self.root, text="Please select all files.").pack(pady=5)
+            return
+
+        # Call the decryption logic here
+        try:
+            self.run_decryption()
+            ctk.CTkLabel(self.root, text="Decryption complete!").pack(pady=5)
+        except Exception as e:
+            ctk.CTkLabel(self.root, text=f"Error: {e}").pack(pady=5)
+
+    def run_decryption(self):
+        print(f"Decrypting {self.video_path} using {self.frame_data_path}...")
+        decrypt = Decrypt(self.video_path, self.output_path, self.frame_data_path)
+        decrypt.process()
+        
+
+    def on_close(self):
+        self.root.destroy()
+        self.root = None
