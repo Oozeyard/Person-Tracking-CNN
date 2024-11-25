@@ -37,16 +37,16 @@ class Decrypt:
                 frame[y1:y2, x1:x2] = decrypted_region
         return frame
 
-    def process(self, decrypt_ids=None):
+    def process(self):
         """
         Decrypt encrypted regions in the video for multiple IDs.
         """
         video_reader = VideoReader(self.video_path)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        if decrypt_ids is None:
+        if self.decrypt_ids is None:
             output_file = self.output_path
         else:
-            output_file = f"{self.output_path.rsplit('.', 1)[0]}_ids_{'_'.join(map(str, decrypt_ids))}.mp4"
+            output_file = f"{self.output_path.rsplit('.', 1)[0]}_ids_{'_'.join(map(str, self.decrypt_ids))}.mp4"
         out = cv2.VideoWriter(output_file, fourcc, video_reader.fps, (video_reader.width, video_reader.height))
 
         for frame_index in range(video_reader.frame_count):
@@ -58,7 +58,7 @@ class Decrypt:
             # Get metadata for the current frame
             current_frame_data = next((fd for fd in self.frame_data if fd["frame_index"] == frame_index), None)
             if current_frame_data:
-                frame = self.process_frame(frame, current_frame_data, decrypt_ids)
+                frame = self.process_frame(frame, current_frame_data, self.decrypt_ids)
 
             out.write(frame)
 
