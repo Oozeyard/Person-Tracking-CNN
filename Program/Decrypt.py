@@ -43,7 +43,10 @@ class Decrypt:
         """
         video_reader = VideoReader(self.video_path)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        output_file = self.output_path if decrypt_ids is None else f"{self.output_path}_ids_{'_'.join(map(str, decrypt_ids))}.mp4"
+        if decrypt_ids is None:
+            output_file = self.output_path
+        else:
+            output_file = f"{self.output_path.rsplit('.', 1)[0]}_ids_{'_'.join(map(str, decrypt_ids))}.mp4"
         out = cv2.VideoWriter(output_file, fourcc, video_reader.fps, (video_reader.width, video_reader.height))
 
         for frame_index in range(video_reader.frame_count):

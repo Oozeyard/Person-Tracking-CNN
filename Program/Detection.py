@@ -33,6 +33,7 @@ class Detection:
         self.aes_keys = {}
     
     def process(self):
+        # fourcc = cv2.VideoWriter_fourcc(*'FFV1')  # FFV1 is a lossless codec
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(self.output_path, fourcc, self.video.fps, (self.video.width, self.video.height))
 
@@ -70,6 +71,7 @@ class Detection:
         
         
     def blur(self, frame, results, frame_index):
+        frame_copy = frame.copy()
         if self.censored_method == 'AES':
             self.assign_aes_key(results) # Generate AES keys for all track IDs
             # JSON file to store the AES keys
@@ -81,12 +83,13 @@ class Detection:
         
         for result in results:
             for box in result.boxes:
+                frame_temp = frame_copy.copy()
                 track_id = int(box.id.item())
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 x1, y1, x2, y2 = x1 + line_width, y1 + line_width, x2 - line_width, y2 - line_width
-                if x1 < 0 or y1 < 0 or x2 > frame.shape[1] or y2 > frame.shape[0]:
+                if x1 < 0 or y1 < 0 or x2 > frame_temp.shape[1] or y2 > frame_temp.shape[0]:
                     continue  # Ignore regions out of bounds
-                person_region = frame[y1:y2, x1:x2]
+                person_region = frame_temp[y1:y2, x1:x2]
                 if person_region.size == 0 or person_region.shape[0] == 0 or person_region.shape[1] == 0:
                     print("Invalid region detected. Skipping.")
                     continue  # Ignore empty or invalid regions
