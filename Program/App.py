@@ -218,7 +218,7 @@ class DecryptWindow:
     def __init__(self, root):
         self.root = ctk.CTkToplevel(root)
         self.root.title("Decrypt Video")
-        self.root.geometry("800x400")
+        self.root.geometry("800x600")
 
         self.video_path = ""
         self.frame_data_path = ""
@@ -228,6 +228,7 @@ class DecryptWindow:
         self.id_checkbuttons = []  # checkbuttons for IDs
         self.id_vars = []
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.root.attributes('-topmost', True)
 
         self.create_widgets()
     
