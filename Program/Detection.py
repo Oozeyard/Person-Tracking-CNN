@@ -22,7 +22,7 @@ class Detection:
         self.censored = censored
         self.censored_method = censored_method
         
-        if self.censored_method == 'AES':
+        if self.censored_method == 'AES' or self.censored_method == 'Selective':
             if os.path.exists("aes_keys.txt"):
                 os.remove("aes_keys.txt")
             if os.path.exists("frame_data.json"):
@@ -72,11 +72,12 @@ class Detection:
         
     def blur(self, frame, results, frame_index):
         frame_copy = frame.copy()
-        if self.censored_method == 'AES':
+        if self.censored_method == 'AES' or self.censored_method == 'Selective':
             self.assign_aes_key(results) # Generate AES keys for all track IDs
             # JSON file to store the AES keys
             frame_data = {
                 "frame_index": frame_index,
+                "isSelective": self.censored_method == 'Selective',
                 "bboxes": []
             }
         line_width = 2
@@ -98,7 +99,19 @@ class Detection:
                 elif self.censored_method == 'Pixelate':
                     blurred_region = self.pixelate(person_region)
                 elif self.censored_method == 'Selective':
-                    blurred_region = self.selective_encryption(person_region)
+                    key = self.aes_keys.get(track_id)
+                    
+                    if key is None:
+                        break
+                    blurred_region, iv = self.selective_encrypt(person_region, key)
+                    bbox_data = {
+                        "id": track_id,
+                        "coords": [x1, y1, x2, y2],
+                        "key": key.hex(),
+                        "iv": iv.hex(),
+                        "region": blurred_region.tolist()
+                    }
+                    frame_data["bboxes"].append(bbox_data)
                 elif self.censored_method == 'AES':
 
                     key = self.aes_keys.get(track_id)
@@ -117,7 +130,7 @@ class Detection:
                                         
                 frame[y1:y2, x1:x2] = blurred_region
             
-            if self.censored_method == 'AES':  
+            if self.censored_method == 'AES' or self.censored_method == 'Selective':  
                 with open("frame_data.json", "a") as f:
                     f.write(json.dumps(frame_data) + "\n")
 
@@ -140,20 +153,6 @@ class Detection:
         # Downscale & upscale the region to pixelate it
         small_region = cv2.resize(region, (small_width, small_height), interpolation=cv2.INTER_NEAREST)
         return cv2.resize(small_region, (region_width, region_height), interpolation=cv2.INTER_NEAREST)
-    
-    def selective_encryption(self, region):
-        """
-        Selectively encryption by manipulating the Least Significant Bits (LSB) of the region.
-        """
-        region = region.astype(np.uint8)
-        encrypted_region = np.zeros(region.shape, dtype=np.uint8)
-        for i in range(region.shape[0]):
-            for j in range(region.shape[1]):
-                pixel = region[i, j]
-                encrypted_pixel = pixel ^ 0xFF
-        
-                encrypted_region[i, j] = encrypted_pixel
-        return encrypted_region
     
 
     ############################################################################################################
@@ -213,6 +212,38 @@ class Detection:
         encrypted_array = encrypted_array.reshape(region.shape)
 
         return encrypted_array, iv
+    
+    def selective_encrypt(self, region, key):
+        """
+        Perform selective AES encryption on the 6 least significant bits of the region.
+        """
+        
+        iv = get_random_bytes(16) 
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+
+        flat_region = region.flatten()
+
+        # Extract the 6 LSBs
+        lsb_bits = flat_region & 0x3F  # Mask
+
+        # Pad the LSBs
+        padding_length = (16 - len(lsb_bits) % 16) % 16
+        padded_lsb_bits = np.pad(lsb_bits, (0, padding_length), mode='constant', constant_values=0)
+
+        # Encrypt the padded LSBs
+        encrypted_lsb_bytes = cipher.encrypt(padded_lsb_bits.tobytes())
+
+        encrypted_lsb = np.frombuffer(encrypted_lsb_bytes, dtype=np.uint8)[:len(lsb_bits)]
+
+        # Replace the 6 LSBs with the encrypted LSBs
+        flat_region &= 0xC0
+        flat_region |= encrypted_lsb & 0x3F  # Set the new 6 LSBs
+
+        encrypted_region = flat_region.reshape(region.shape)
+
+        return encrypted_region, iv
+
+
     
     #def pretreatment(self):
         # # Noises removal

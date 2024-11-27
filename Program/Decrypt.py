@@ -2,7 +2,6 @@ import cv2
 import json
 from Crypto.Cipher import AES
 import numpy as np
-import argparse
 from VideoReader import VideoReader
 
 class Decrypt:
@@ -33,7 +32,10 @@ class Decrypt:
 
                 encrypted_region = np.array(bbox["region"], dtype=np.uint8)
 
-                decrypted_region = self.aes_decrypt(encrypted_region, key, iv, encrypted_region.shape)
+                if frame_data.get("isSelective", True):
+                    decrypted_region = self.selective_decrypt(encrypted_region, key, iv, encrypted_region.shape)
+                else:
+                    decrypted_region = self.aes_decrypt(encrypted_region, key, iv, encrypted_region.shape)
                 frame[y1:y2, x1:x2] = decrypted_region
         return frame
 
@@ -100,3 +102,30 @@ class Decrypt:
 
         return decrypted_region
     
+    def selective_decrypt(self, encrypted_region, key, iv, original_shape):
+        """
+        Selective AES decryption for the 6 least significant bits of the region.
+        """
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+
+        flat_region = encrypted_region.flatten()
+
+        # Extract the 6 LSBs
+        encrypted_lsb_bits = flat_region & 0x3F  # Mask
+
+        # Pad the encrypted LSBs
+        padding_length = (16 - len(encrypted_lsb_bits) % 16) % 16
+        padded_encrypted_lsb_bits = np.pad(encrypted_lsb_bits, (0, padding_length), mode='constant', constant_values=0)
+
+        # Decrypt the padded LSBs
+        decrypted_lsb_bytes = cipher.decrypt(padded_encrypted_lsb_bits.tobytes())
+
+        decrypted_lsb = np.frombuffer(decrypted_lsb_bytes, dtype=np.uint8)[:len(encrypted_lsb_bits)]
+
+        # Replace the 6 LSBs in the original region
+        flat_region &= 0xC0  # Clear the last 6 bits
+        flat_region |= decrypted_lsb & 0x3F  # Set the decrypted 6 LSBs
+
+        decrypted_region = flat_region.reshape(original_shape)
+
+        return decrypted_region

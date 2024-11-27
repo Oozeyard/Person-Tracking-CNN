@@ -122,5 +122,5 @@ dmypy.json
 cython_debug/
 
 # Frame data
-/Program/*.json
-/Program/*.txt
+*.txt
+*.json
