@@ -6,11 +6,12 @@ import argparse
 from VideoReader import VideoReader
 
 class Decrypt:
-    def __init__(self, video_path, output_path, frame_path, decrypt_ids=None):
+    def __init__(self, video_path, output_path, frame_path, decrypt_ids=None, allIdSelected=False):
         self.video_path = video_path
         self.output_path = output_path
         self.frame_data = self.load_frame_data(frame_path)
         self.decrypt_ids = decrypt_ids
+        self.allIdSelected = allIdSelected
 
     def load_frame_data(self, file_path):
         """
@@ -31,7 +32,7 @@ class Decrypt:
                 key = bytes.fromhex(bbox["key"])
                 iv = bytes.fromhex(bbox["iv"])
 
-                encrypted_region = np.array(bbox["region"], dtype=np.uint8)
+                encrypted_region = frame[y1:y2, x1:x2]
 
                 decrypted_region = self.aes_decrypt(encrypted_region, key, iv, encrypted_region.shape)
                 frame[y1:y2, x1:x2] = decrypted_region
@@ -42,11 +43,11 @@ class Decrypt:
         Decrypt encrypted regions in the video for multiple IDs.
         """
         video_reader = VideoReader(self.video_path)
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        if self.decrypt_ids is None:
+        fourcc = cv2.VideoWriter_fourcc(*'FFV1')  # FFV1 is a lossless codec (.avi)
+        if self.decrypt_ids is None or self.allIdSelected:
             output_file = self.output_path
         else:
-            output_file = f"{self.output_path.rsplit('.', 1)[0]}_ids_{'_'.join(map(str, self.decrypt_ids))}.mp4"
+            output_file = f"{self.output_path.rsplit('.', 1)[0]}_ids_{'_'.join(map(str, self.decrypt_ids))}.avi"
         out = cv2.VideoWriter(output_file, fourcc, video_reader.fps, (video_reader.width, video_reader.height))
 
         for frame_index in range(video_reader.frame_count):
@@ -99,4 +100,5 @@ class Decrypt:
         decrypted_region = decrypted_region.reshape(original_shape)
 
         return decrypted_region
+    
     

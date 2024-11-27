@@ -18,7 +18,7 @@ class App:
         ctk.set_default_color_theme("blue") 
         
         # video extension
-        self.video_exts = r"*.mp4 *.png *.jpg"#  *.avi *.mov  *.mkv"  /!\ Only mp4 files are supported for now
+        self.video_exts = r"*.mp4 *.png *.jpg *.avi"#  *.avi *.mov  *.mkv"  /!\ Only mp4 files are supported for now
 
         
         # Blur
@@ -118,7 +118,7 @@ class App:
             print(f"Video path: {self.video_path}")
 
     def select_output(self):
-        self.output_path = filedialog.asksaveasfilename(title="Save as", defaultextension=".mp4", filetypes=[("Video file", self.video_exts)])
+        self.output_path = filedialog.asksaveasfilename(title="Save as", defaultextension=".avi", filetypes=[("Video file", self.video_exts)])
         if self.output_path:
             self.output_path_label.configure(text=self.output_path)
             print(f"Output path : {self.output_path}")
@@ -218,7 +218,7 @@ class DecryptWindow:
     def __init__(self, root):
         self.root = ctk.CTkToplevel(root)
         self.root.title("Decrypt Video")
-        self.root.geometry("800x400")
+        self.root.geometry("800x500")
 
         self.video_path = ""
         self.frame_data_path = ""
@@ -272,7 +272,7 @@ class DecryptWindow:
         ctk.CTkButton(self.root, text="Decrypt", command=self.decrypt_video).pack(pady=20)
 
     def select_video(self):
-        self.video_path = filedialog.askopenfilename(title="Select Video", filetypes=[("Video files", "*.mp4")])
+        self.video_path = filedialog.askopenfilename(title="Select Video", filetypes=[("Video files", "*.mp4 *.avi")])
         if self.video_path:
             self.video_path_label.configure(text=self.video_path)
 
@@ -326,6 +326,7 @@ class DecryptWindow:
 
 
     def select_all_ids(self):
+        self.allIdSelected = True
         for var in self.id_vars:
             var.set(True)
 
@@ -335,7 +336,7 @@ class DecryptWindow:
         return selected_ids
 
     def select_output(self):
-        self.output_path = filedialog.asksaveasfilename(title="Save As", defaultextension=".mp4", filetypes=[("Video files", "*.mp4")])
+        self.output_path = filedialog.asksaveasfilename(title="Save As", defaultextension=".avi", filetypes=[("Video files", "*.mp4 *.avi")])
         if self.output_path:
             self.output_path_label.configure(text=self.output_path)
 
@@ -353,7 +354,7 @@ class DecryptWindow:
 
     def run_decryption(self, selected_ids):
         print(f"Decrypting {self.video_path} using {self.frame_data_path} and selected IDs: {selected_ids}...")
-        decrypt = Decrypt(self.video_path, self.output_path, self.frame_data_path, selected_ids)
+        decrypt = Decrypt(self.video_path, self.output_path, self.frame_data_path, selected_ids, self.allIdSelected)
         decrypt.process()
 
     def on_close(self):

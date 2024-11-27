@@ -33,8 +33,8 @@ class Detection:
         self.aes_keys = {}
     
     def process(self):
-        # fourcc = cv2.VideoWriter_fourcc(*'FFV1')  # FFV1 is a lossless codec
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fourcc = cv2.VideoWriter_fourcc(*'FFV1')  # FFV1 is a lossless codec (.avi)
+        # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(self.output_path, fourcc, self.video.fps, (self.video.width, self.video.height))
 
         for i in range(self.video.frame_count):
@@ -47,14 +47,14 @@ class Detection:
             if self.censored:
                 self.blur(frame, results, i)
 
-            out.write(results[0].plot())  # write the frame to the output video
+            out.write(results[0].plot(labels=False, conf=False))  # write the frame to the output video
             
             # progress bar
             progress = (i + 1) / self.video.frame_count
             print(f'\rProgress: {progress:.2%}', end='')
             
             if self.callback:
-                self.callback(progress, i, results[0].plot())
+                self.callback(progress, i, results[0].plot(labels=False, conf=False))
         
         self.video.release()
         out.release()
@@ -79,7 +79,7 @@ class Detection:
                 "frame_index": frame_index,
                 "bboxes": []
             }
-        line_width = 2
+        line_width = 5
         
         for result in results:
             for box in result.boxes:
@@ -111,7 +111,7 @@ class Detection:
                         "coords": [x1, y1, x2, y2],
                         "key": key.hex(),
                         "iv": iv.hex(),
-                        "region": blurred_region.tolist()
+                        # "region": blurred_region.tolist()
                     }
                     frame_data["bboxes"].append(bbox_data)
                                         
