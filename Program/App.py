@@ -169,6 +169,8 @@ class App:
         self.progress.update_idletasks()
         self.progress_slider.set(index / self.video.get_fps())
         self.progress_slider.update_idletasks()
+        self.dynamic_label.update_idletasks()
+        self.root.update()
         self.display_video_frame(outImage) # Work but is slow
 
     def process_video(self):
@@ -229,6 +231,7 @@ class DecryptWindow:
         self.id_vars = []
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.root.attributes('-topmost', True)
+        self.allIdSelected = False
 
         self.create_widgets()
     
@@ -327,6 +330,7 @@ class DecryptWindow:
 
 
     def select_all_ids(self):
+        self.allIdSelected = True
         for var in self.id_vars:
             var.set(True)
 
@@ -354,7 +358,7 @@ class DecryptWindow:
 
     def run_decryption(self, selected_ids):
         print(f"Decrypting {self.video_path} using {self.frame_data_path} and selected IDs: {selected_ids}...")
-        decrypt = Decrypt(self.video_path, self.output_path, self.frame_data_path, selected_ids)
+        decrypt = Decrypt(self.video_path, self.output_path, self.frame_data_path, selected_ids, self.allIdSelected)
         decrypt.process()
 
     def on_close(self):
