@@ -91,15 +91,20 @@ class App:
         self.progress.pack(pady=5)
         self.progress.set(0)
         
-        #Process button
-        ctk.CTkButton(self.root, text="Process", command=self.process_video).pack(side='left', anchor='e', expand=True, padx=5)
-        # Add Decrypt button
-        ctk.CTkButton(self.root, text="Decrypt Window", command=self.open_decrypt_window).pack(side='right', anchor='w', expand=True, padx=5)
+        button_frame = ctk.CTkFrame(self.root)
+        button_frame.pack(pady=5)
 
-        # Label to appear when needed
+        # Process button
+        process_button = ctk.CTkButton(button_frame, text="Process", command=self.process_video)
+        process_button.pack(side='left', padx=5)
+
+        # Decrypt button
+        decrypt_button = ctk.CTkButton(button_frame, text="Decrypt Window", command=self.open_decrypt_window)
+        decrypt_button.pack(side='left', padx=5)
+
+        # Dynamic label
         self.dynamic_label = ctk.CTkLabel(self.root, text="")
         self.dynamic_label.pack(pady=5)
-
 
 
     def select_video(self):
@@ -228,7 +233,7 @@ class DecryptWindow:
         self.id_checkbuttons = []  # checkbuttons for IDs
         self.id_vars = []
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
-        self.root.attributes('-topmost', True)
+        self.root.lift()
 
         self.create_widgets()
     
@@ -273,15 +278,19 @@ class DecryptWindow:
         ctk.CTkButton(self.root, text="Decrypt", command=self.decrypt_video).pack(pady=20)
 
     def select_video(self):
+        self.root.lower()
         self.video_path = filedialog.askopenfilename(title="Select Video", filetypes=[("Video files", "*.mp4")])
         if self.video_path:
             self.video_path_label.configure(text=self.video_path)
+        self.root.lift()
 
     def select_frame_data(self):
-        self.frame_data_path = filedialog.askopenfilename(title="Select Frame Data", filetypes=[("JSON files", "*.json")])
+        self.root.lower()
+        self.frame_data_path = filedialog.askopenfilename(title="Select Frame Data", filetypes=[("JSON files", "*.json")], parent=self.root)
         if self.frame_data_path:
             self.frame_data_label.configure(text=self.frame_data_path)
             self.load_frame_data(self.frame_data_path) # Load IDs from JSON file
+        self.root.lift()
 
     def load_frame_data(self, path):
         """Load Json File to show all IDs"""
@@ -336,9 +345,11 @@ class DecryptWindow:
         return selected_ids
 
     def select_output(self):
+        self.root.lower()
         self.output_path = filedialog.asksaveasfilename(title="Save As", defaultextension=".mp4", filetypes=[("Video files", "*.mp4")])
         if self.output_path:
             self.output_path_label.configure(text=self.output_path)
+        self.root.lift()
 
     def decrypt_video(self):
         selected_ids = self.get_selected_ids()
