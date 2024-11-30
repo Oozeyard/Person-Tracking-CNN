@@ -5,11 +5,12 @@ import numpy as np
 from VideoReader import VideoReader
 
 class Decrypt:
-    def __init__(self, video_path, output_path, frame_path, decrypt_ids=None):
+    def __init__(self, video_path, output_path, frame_path, decrypt_ids=None, allIdSelected=False):
         self.video_path = video_path
         self.output_path = output_path
         self.frame_data = self.load_frame_data(frame_path)
         self.decrypt_ids = decrypt_ids
+        self.allIdSelected = allIdSelected
 
     def load_frame_data(self, file_path):
         """
@@ -45,7 +46,7 @@ class Decrypt:
         """
         video_reader = VideoReader(self.video_path)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        if self.decrypt_ids is None:
+        if self.decrypt_ids is None or self.allIdSelected:
             output_file = self.output_path
         else:
             output_file = f"{self.output_path.rsplit('.', 1)[0]}_ids_{'_'.join(map(str, self.decrypt_ids))}.mp4"
