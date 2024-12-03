@@ -103,12 +103,13 @@ class Detection:
                     
                     if key is None:
                         break
-                    blurred_region, iv = self.selective_encrypt(person_region, key)
+                    blurred_region, iv, encrypted_msb = self.selective_encrypt(person_region, key)
                     bbox_data = {
                         "id": track_id,
                         "coords": [x1, y1, x2, y2],
                         "key": key.hex(),
                         "iv": iv.hex(),
+                        "encrypted_msb": encrypted_msb.tolist(),
                         "region": blurred_region.tolist()
                     }
                     frame_data["bboxes"].append(bbox_data)
@@ -215,9 +216,8 @@ class Detection:
     
     def selective_encrypt(self, region, key):
         """
-        Perform selective AES encryption on the 6 least significant bits of the region.
+        Chiffrement sélectif des 6 bits LSB d'une région.
         """
-        
         iv = get_random_bytes(16) 
         cipher = AES.new(key, AES.MODE_CBC, iv)
 
@@ -232,16 +232,19 @@ class Detection:
 
         # Encrypt the padded LSBs
         encrypted_lsb_bytes = cipher.encrypt(padded_lsb_bits.tobytes())
+        
 
         encrypted_lsb = np.frombuffer(encrypted_lsb_bytes, dtype=np.uint8)[:len(lsb_bits)]
-
+        encrypted_msb = encrypted_lsb & 0xC0  # Extract the 2 MSBs needed to decrypt
+        
+        
         # Replace the 6 LSBs with the encrypted LSBs
         flat_region &= 0xC0
         flat_region |= encrypted_lsb & 0x3F  # Set the new 6 LSBs
 
         encrypted_region = flat_region.reshape(region.shape)
 
-        return encrypted_region, iv
+        return encrypted_region, iv, encrypted_msb
 
 
     

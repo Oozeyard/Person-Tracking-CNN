@@ -366,6 +366,7 @@ class DecryptWindow:
             ctk.CTkLabel(self.root, text="Decryption complete!").pack(pady=5)
         except Exception as e:
             ctk.CTkLabel(self.root, text=f"Error: {e}").pack(pady=5)
+            print({e})
 
     def run_decryption(self, selected_ids):
         print(f"Decrypting {self.video_path} using {self.frame_data_path} and selected IDs: {selected_ids}...")

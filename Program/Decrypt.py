@@ -34,7 +34,8 @@ class Decrypt:
                 encrypted_region = np.array(bbox["region"], dtype=np.uint8)
 
                 if frame_data.get("isSelective", True):
-                    decrypted_region = self.selective_decrypt(encrypted_region, key, iv, encrypted_region.shape)
+                    encrypted_msb = np.array(bbox["encrypted_msb"], dtype=np.uint8)
+                    decrypted_region = self.selective_decrypt(encrypted_region, key, iv, encrypted_region.shape, encrypted_msb)
                 else:
                     decrypted_region = self.aes_decrypt(encrypted_region, key, iv, encrypted_region.shape)
                 frame[y1:y2, x1:x2] = decrypted_region
@@ -102,31 +103,33 @@ class Decrypt:
         decrypted_region = decrypted_region.reshape(original_shape)
 
         return decrypted_region
-    
-    def selective_decrypt(self, encrypted_region, key, iv, original_shape):
+
+    def selective_decrypt(self, encrypted_region, key, iv, original_shape, encrypted_msb):
         """
-        Selective AES decryption for the 6 least significant bits of the region.
+        Déchiffrement sélectif des 6 bits LSB d'une région.
         """
         cipher = AES.new(key, AES.MODE_CBC, iv)
 
         flat_region = encrypted_region.flatten()
 
         # Extract the 6 LSBs
-        encrypted_lsb_bits = flat_region & 0x3F  # Mask
+        encrypted_lsb = flat_region & 0x3F  # Mask
+        encrypted_lsb |= encrypted_msb  # Set the 2 MSBs
 
-        # Pad the encrypted LSBs
-        padding_length = (16 - len(encrypted_lsb_bits) % 16) % 16
-        padded_encrypted_lsb_bits = np.pad(encrypted_lsb_bits, (0, padding_length), mode='constant', constant_values=0)
+        # Pad the LSBs
+        padding_length = (16 - len(encrypted_lsb) % 16) % 16
+        padded_encrypted_lsb = np.pad(encrypted_lsb, (0, padding_length), mode='constant', constant_values=0)
 
         # Decrypt the padded LSBs
-        decrypted_lsb_bytes = cipher.decrypt(padded_encrypted_lsb_bits.tobytes())
+        decrypted_lsb_bytes = cipher.decrypt(padded_encrypted_lsb.tobytes())
 
-        decrypted_lsb = np.frombuffer(decrypted_lsb_bytes, dtype=np.uint8)[:len(encrypted_lsb_bits)]
+        decrypted_lsb = np.frombuffer(decrypted_lsb_bytes, dtype=np.uint8)[:len(encrypted_lsb)]
 
-        # Replace the 6 LSBs in the original region
-        flat_region &= 0xC0  # Clear the last 6 bits
-        flat_region |= decrypted_lsb & 0x3F  # Set the decrypted 6 LSBs
+        # Replace the 6 LSBs with the decrypted LSBs
+        flat_region &= 0xC0
+        flat_region |= decrypted_lsb & 0x3F  # Set the new 6 LSBs
 
         decrypted_region = flat_region.reshape(original_shape)
 
         return decrypted_region
+
