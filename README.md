@@ -6,15 +6,18 @@ Pour cela, nous utilisons YOLO pour la détection, ByteTrack pour le suivi.
 Ensuite nous utilisons plusieurs algorithmes tel que le chiffrement AES pour anonymiser.
 
 
-https://github.com/user-attachments/assets/b7c16c95-4c9f-4111-9dc6-c13da6e0263d
+
+https://github.com/user-attachments/assets/8ad3beba-b72b-4589-9170-06f78c8b8d10
 
 
 
-https://github.com/user-attachments/assets/a8832bb6-fca1-4cdd-b46f-9a3c7e881c0e
+https://github.com/user-attachments/assets/cbee1528-70c3-435b-bde6-8140fcfb3e0e
 
 
 
-https://github.com/user-attachments/assets/3c8606bf-c858-47f3-a83d-f14052941424
+
+https://github.com/user-attachments/assets/cbeb6c47-8eae-4bbf-9fe3-eec02b665331
+
 
 
 Crée par : 
